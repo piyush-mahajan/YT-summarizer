@@ -1,13 +1,13 @@
-import React, { useEffect } from 'react';
-import InputForm from '../components/InputForm';
-import SummaryView from '../components/SummaryView';
-import { checkHealth } from '../services/api';
+import React, { useState, useEffect } from 'react';
+import YouTubeInput from '../components/YouTubeInput';
+import ResultsView from '../components/ResultsView';
+import { checkHealth, processYouTubeUrl } from '../services/api';
 
 function Home() {
-  const [result, setResult] = React.useState(null);
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState(null);
-  const [apiStatus, setApiStatus] = React.useState('checking');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [apiStatus, setApiStatus] = useState('checking');
+  const [videoData, setVideoData] = useState(null);
 
   useEffect(() => {
     const verifyApiHealth = async () => {
@@ -23,6 +23,25 @@ function Home() {
     verifyApiHealth();
   }, []);
 
+  const handleSubmit = async (url) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await processYouTubeUrl(url);
+      setVideoData({
+        title: response.title || 'Untitled Video',
+        thumbnail: response.thumbnail || '/placeholder.jpg',
+        summary: response.summary || 'No summary available',
+        transcript: response.transcript || 'No transcript available'
+      });
+    } catch (error) {
+      setError(error.message);
+      setVideoData(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   if (apiStatus === 'checking') {
     return <div className="text-center py-8">Checking API status...</div>;
   }
@@ -32,28 +51,16 @@ function Home() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8 text-center">
+    <main className="flex min-h-screen flex-col items-center gap-8 p-4 md:p-8">
+      <h1 className="text-3xl font-bold text-center">
         YouTube Transcript Summarizer
       </h1>
-      <InputForm 
-        setResult={setResult} 
-        setLoading={setLoading} 
-        setError={setError} 
-      />
-      {loading && (
-        <div className="text-center py-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-2">Processing...</p>
-        </div>
-      )}
+      <YouTubeInput onSubmit={handleSubmit} isLoading={isLoading} />
       {error && (
-        <div className="text-red-500 text-center py-4 max-w-xl mx-auto">
-          {error}
-        </div>
+        <div className="text-red-500 text-center max-w-xl">{error}</div>
       )}
-      {result && <SummaryView result={result} />}
-    </div>
+      {videoData && <ResultsView data={videoData} />}
+    </main>
   );
 }
 
