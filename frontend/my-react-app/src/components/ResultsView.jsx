@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import LanguageSelect from './LanguageSelect';
+import ChatView from './ChatView';
 
 function ResultsView({ data, onLanguageChange }) {
   const [activeTab, setActiveTab] = useState('summary');
@@ -51,6 +52,16 @@ function ResultsView({ data, onLanguageChange }) {
             >
               Transcript
             </button>
+            <button
+              onClick={() => setActiveTab('chat')}
+              className={`px-6 py-2 rounded-lg font-medium ${
+                activeTab === 'chat'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              AI Chat
+            </button>
           </div>
 
           {/* Content Area */}
@@ -73,6 +84,10 @@ function ResultsView({ data, onLanguageChange }) {
               <p className="whitespace-pre-wrap text-gray-700">
                 {data.transcript}
               </p>
+            )}
+
+            {activeTab === 'chat' && (
+              <ChatView transcript={data.transcript} />
             )}
           </div>
         </div>
