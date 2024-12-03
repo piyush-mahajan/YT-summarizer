@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import LanguageSelect from './LanguageSelect';
 import ChatView from './ChatView';
+import VideoPlayer from './VideoPlayer';
 
 function ResultsView({ data, onLanguageChange }) {
   const [activeTab, setActiveTab] = useState('summary');
@@ -11,18 +12,22 @@ function ResultsView({ data, onLanguageChange }) {
     onLanguageChange(newLanguage);
   };
 
+  // Extract video ID from URL
+  const getVideoId = (url) => {
+    const match = url.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/);
+    return match ? match[1] : null;
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-lg p-6">
       <div className="grid grid-cols-[300px_1fr] gap-6">
-        {/* Left Column - Thumbnail and Title */}
+        {/* Left Column - Video/Thumbnail and Title */}
         <div className="space-y-4">
-          <div className="aspect-video w-full rounded-lg overflow-hidden bg-gray-100">
-            <img
-              src={data.thumbnail}
-              alt={data.title}
-              className="w-full h-full object-cover"
-            />
-          </div>
+          <VideoPlayer
+            videoId={getVideoId(data.url)}
+            thumbnail={data.thumbnail}
+            title={data.title}
+          />
           <h2 className="text-lg font-semibold text-gray-800">
             {data.title}
           </h2>
@@ -52,7 +57,7 @@ function ResultsView({ data, onLanguageChange }) {
             >
               Transcript
             </button>
-            {/* <button
+            <button
               onClick={() => setActiveTab('chat')}
               className={`px-6 py-2 rounded-lg font-medium ${
                 activeTab === 'chat'
@@ -61,7 +66,7 @@ function ResultsView({ data, onLanguageChange }) {
               }`}
             >
               AI Chat
-            </button> */}
+            </button>
           </div>
 
           {/* Content Area */}

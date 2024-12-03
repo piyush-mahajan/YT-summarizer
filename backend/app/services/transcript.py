@@ -37,7 +37,8 @@ async def process_youtube_url(url):
             "title": title,
             "thumbnail": thumbnail,
             "transcript": english_transcript,
-            "original_transcript": transcript
+            "original_transcript": transcript,
+            "url": url
         }
     
     except Exception as e:
