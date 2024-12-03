@@ -52,7 +52,7 @@ function ResultsView({ data, onLanguageChange }) {
             >
               Transcript
             </button>
-            <button
+            {/* <button
               onClick={() => setActiveTab('chat')}
               className={`px-6 py-2 rounded-lg font-medium ${
                 activeTab === 'chat'
@@ -61,7 +61,7 @@ function ResultsView({ data, onLanguageChange }) {
               }`}
             >
               AI Chat
-            </button>
+            </button> */}
           </div>
 
           {/* Content Area */}
