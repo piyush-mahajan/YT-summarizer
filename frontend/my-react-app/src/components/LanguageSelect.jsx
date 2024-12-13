@@ -1,29 +1,29 @@
 import React from 'react';
 
 const languages = [
-  { code: 'en', name: 'English' },
-  { code: 'hi', name: 'Hindi' },
-  { code: 'mr', name: 'Marathi' },
-  { code: 'gu', name: 'Gujarati' },
-  { code: 'bn', name: 'Bengali' },
-  { code: 'ta', name: 'Tamil' },
-  { code: 'te', name: 'Telugu' },
-  { code: 'kn', name: 'Kannada' },
-  { code: 'ml', name: 'Malayalam' },
-  { code: 'pa', name: 'Punjabi' },
-  { code: 'ja', name: 'Japanese' },
-  { code: 'es', name: 'Spanish' },
-  { code: 'fr', name: 'French' },
-  { code: 'de', name: 'German' },
-  { code: 'zh-CN', name: 'Chinese (Simplified)' },
-  { code: 'ko', name: 'Korean' },
-  { code: 'ru', name: 'Russian' },
-  { code: 'it', name: 'Italian' },
-  { code: 'pt', name: 'Portuguese' },
-  { code: 'ar', name: 'Arabic' }
+  { code: 'en', name: 'English', nativeName: 'English' },
+  { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी' },
+  { code: 'mr', name: 'Marathi', nativeName: 'मराठी' },
+  { code: 'gu', name: 'Gujarati', nativeName: 'ગુજરાતી' },
+  { code: 'bn', name: 'Bengali', nativeName: 'বাংলা' },
+  { code: 'ta', name: 'Tamil', nativeName: 'தமிழ்' },
+  { code: 'te', name: 'Telugu', nativeName: 'తెలుగు' },
+  { code: 'kn', name: 'Kannada', nativeName: 'ಕನ್ನಡ' },
+  { code: 'ml', name: 'Malayalam', nativeName: 'മലയാളം' },
+  { code: 'pa', name: 'Punjabi', nativeName: 'ਪੰਜਾਬੀ' },
+  { code: 'ja', name: 'Japanese', nativeName: '日本語' },
+  { code: 'es', name: 'Spanish', nativeName: 'Español' },
+  { code: 'fr', name: 'French', nativeName: 'Français' },
+  { code: 'de', name: 'German', nativeName: 'Deutsch' },
+  { code: 'zh-CN', name: 'Chinese (Simplified)', nativeName: '简体中文' },
+  { code: 'ko', name: 'Korean', nativeName: '한국어' },
+  { code: 'ru', name: 'Russian', nativeName: 'Русский' },
+  { code: 'it', name: 'Italian', nativeName: 'Italiano' },
+  { code: 'pt', name: 'Portuguese', nativeName: 'Português' },
+  { code: 'ar', name: 'Arabic', nativeName: 'العربية' }
 ];
 
-function LanguageSelect({ value, onChange }) {
+function LanguageSelect({ value, onChange, currentLanguage }) {
   return (
     <div className="relative">
       <select
@@ -33,7 +33,7 @@ function LanguageSelect({ value, onChange }) {
       >
         {languages.map((lang) => (
           <option key={lang.code} value={lang.code}>
-            {lang.name}
+            {lang.nativeName} ({lang.name})
           </option>
         ))}
       </select>

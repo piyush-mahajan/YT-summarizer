@@ -1,12 +1,14 @@
-export const translateText = async (text, targetLang) => {
+import axios from 'axios';
+
+export const translateText = async (text, targetLang, sourceLang = 'auto') => {
   try {
-    const encodedText = encodeURIComponent(text);
-    const response = await fetch(
-      `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=${targetLang}&dt=t&q=${encodedText}`
-    );
+    const response = await axios.post('http://localhost:8000/api/translate', {
+      text,
+      target_lang: targetLang,
+      source_lang: sourceLang
+    });
     
-    const data = await response.json();
-    return data[0].map(x => x[0]).join('');
+    return response.data.translated_text;
   } catch (error) {
     console.error('Translation error:', error);
     throw new Error('Translation failed');

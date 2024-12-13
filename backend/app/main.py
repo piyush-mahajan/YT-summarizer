@@ -15,6 +15,7 @@ import os
 from dotenv import load_dotenv
 import httpx
 from typing import Optional
+from googletrans import Translator
 
 load_dotenv()  # Load environment variables
 
@@ -53,6 +54,16 @@ class ChatRequest(BaseModel):
     message: str
 
     transcript: Optional[str] = None
+
+
+
+class TranslationRequest(BaseModel):
+
+    text: str
+
+    target_lang: str
+
+    source_lang: str = 'auto'
 
 
 
@@ -164,3 +175,26 @@ Please provide a relevant answer based on the context."""
     except Exception as e:
         print(f"Error in chat endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+
+@app.post("/api/translate")
+async def translate_text(request: TranslationRequest):
+    try:
+        translator = Translator()
+        translation = translator.translate(
+            request.text,
+            dest=request.target_lang,
+            src=request.source_lang
+        )
+        
+        return {
+            "translated_text": translation.text,
+            "source_lang": translation.src,
+            "target_lang": translation.dest
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Translation failed: {str(e)}"
+        )

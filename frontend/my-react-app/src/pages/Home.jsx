@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import YouTubeInput from '../components/YouTubeInput';
+import ButtonGroup from '../components/ButtonGroup';
 import ResultsView from '../components/ResultsView';
 import { checkHealth, processYouTubeUrl } from '../services/api';
 
@@ -66,15 +67,37 @@ function Home() {
     }
   };
 
+  const handleAddImage = () => {
+    console.log('Add image clicked');
+  };
+
+  const handleSummarize = () => {
+    console.log('Summarize clicked');
+  };
+
+  const handleAnalyzeVideo = () => {
+    console.log('Analyze video clicked');
+  };
+
+  const handleAnalyzeData = () => {
+    console.log('Analyze data clicked');
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-6xl mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold text-center text-gray-800 mb-8">
-        PPAS Summarizer
+        NoteGPT Tangible AI
         </h1>
         
         <div className="mb-8">
           <YouTubeInput onSubmit={handleSubmit} isLoading={isLoading} />
+          <ButtonGroup 
+            onAddImage={handleAddImage}
+            onSummarize={handleSummarize}
+            onAnalyzeVideo={handleAnalyzeVideo}
+            onAnalyzeData={handleAnalyzeData}
+          />
         </div>
         
         {error && (
@@ -104,9 +127,3 @@ function Home() {
 }
 
 export default Home;
-
-
-
-
-
-
