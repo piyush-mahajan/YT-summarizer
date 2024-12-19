@@ -155,3 +155,11 @@ Azure OpenAI API access
 Environment variables configuration
 CORS configuration
 This project demonstrates the integration of modern web technologies with AI capabilities to create a practical tool for video content analysis and interaction.
+
+
+for backend run commands :
+uvicorn app.main:app --reload
+
+for frontend run commands :
+npm run dev
+

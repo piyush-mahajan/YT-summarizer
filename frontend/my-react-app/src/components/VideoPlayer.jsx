@@ -1,13 +1,88 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
-function VideoPlayer({ videoId, thumbnail, title }) {
+function VideoPlayer({ videoId, thumbnail, title, startTime = 0 }) {
   const [isPlaying, setIsPlaying] = useState(false);
+  const playerRef = useRef(null);
+  const [isAPIReady, setIsAPIReady] = useState(false);
 
-  const getVideoUrl = () => {
-    return `https://www.youtube.com/embed/${videoId}?autoplay=1`;
-  };
+  // Load YouTube API once
+  useEffect(() => {
+    if (!window.YT) {
+      const tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      const firstScriptTag = document.getElementsByTagName('script')[0];
+      firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+      window.onYouTubeIframeAPIReady = () => {
+        console.log('YouTube API Ready');
+        setIsAPIReady(true);
+      };
+    } else {
+      setIsAPIReady(true);
+    }
+  }, []);
+
+  // Initialize or update player
+  useEffect(() => {
+    if (!isAPIReady || !videoId || !isPlaying) return;
+
+    console.log('Initializing player with ID:', videoId);
+    
+    const player = new window.YT.Player('youtube-player', {
+      videoId,
+      playerVars: {
+        autoplay: 1,
+        controls: 1,
+        rel: 0,
+        modestbranding: 1,
+        origin: window.location.origin
+      },
+      events: {
+        onReady: (event) => {
+          console.log('Player ready');
+          playerRef.current = event.target;
+          if (startTime > 0) {
+            console.log('Initial seek to:', startTime);
+            event.target.seekTo(startTime);
+            event.target.playVideo();
+          }
+        },
+        onStateChange: (event) => {
+          if (event.data === window.YT.PlayerState.PLAYING) {
+            setIsPlaying(true);
+          }
+        },
+        onError: (event) => {
+          console.error('YouTube Player Error:', event.data);
+        }
+      }
+    });
+
+    return () => {
+      if (playerRef.current) {
+        playerRef.current.destroy();
+      }
+    };
+  }, [videoId, isPlaying, isAPIReady]);
+
+  // Handle timestamp changes
+  useEffect(() => {
+    if (playerRef.current && startTime > 0) {
+      console.log('Seeking to time:', startTime);
+      try {
+        playerRef.current.seekTo(startTime);
+        if (!isPlaying) {
+          playerRef.current.playVideo();
+          setIsPlaying(true);
+        }
+      } catch (error) {
+        console.error('Seek error:', error);
+      }
+    }
+  }, [startTime]);
 
   const handleThumbnailClick = () => {
+    console.log('Thumbnail clicked');
     setIsPlaying(true);
   };
 
@@ -30,19 +105,13 @@ function VideoPlayer({ videoId, thumbnail, title }) {
                 fill="currentColor" 
                 viewBox="0 0 24 24"
               >
-                <path d="M8 5v14l11-7z"/>
+                <path d="M8 5v14l11-7z" />
               </svg>
             </div>
           </div>
         </div>
       ) : (
-        <iframe
-          src={getVideoUrl()}
-          title={title}
-          className="w-full h-full"
-          allowFullScreen
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        />
+        <div id="youtube-player" className="w-full h-full" />
       )}
     </div>
   );

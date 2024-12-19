@@ -6,19 +6,17 @@ from fastapi.responses import JSONResponse
 
 from pydantic import BaseModel
 
-from app.services.transcript import process_youtube_url
+from app.services.transcript import process_youtube_url, get_transcript
 
 from app.services.summary import summarize_text
-
+# from googletrans import Translator
 import openai
 import os
 from dotenv import load_dotenv
 import httpx
 from typing import Optional
-from googletrans import Translator
 
 load_dotenv()  # Load environment variables
-
 
 
 app = FastAPI()
@@ -31,7 +29,7 @@ app.add_middleware(
 
     CORSMiddleware,
 
-    allow_origins=["*"],  # Allow all origins in development
+    allow_origins=["http://localhost:3000", "http://localhost:3001"],  # Add ACV skeleton port
 
     allow_credentials=True,
 
@@ -56,7 +54,6 @@ class ChatRequest(BaseModel):
     transcript: Optional[str] = None
 
 
-
 class TranslationRequest(BaseModel):
 
     text: str
@@ -65,7 +62,7 @@ class TranslationRequest(BaseModel):
 
     source_lang: str = 'auto'
 
-
+    
 
 @app.post("/api/process")
 
@@ -176,8 +173,6 @@ Please provide a relevant answer based on the context."""
         print(f"Error in chat endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-
-
 @app.post("/api/translate")
 async def translate_text(request: TranslationRequest):
     try:
@@ -198,3 +193,13 @@ async def translate_text(request: TranslationRequest):
             status_code=500,
             detail=f"Translation failed: {str(e)}"
         )
+
+@app.get("/api/transcript/{video_id}")
+async def get_video_transcript(video_id: str, interval: int = 15):
+    try:
+        transcript = await get_transcript(video_id, interval)
+        if not transcript:
+            raise HTTPException(status_code=404, detail="Transcript not found")
+        return transcript
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

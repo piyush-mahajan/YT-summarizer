@@ -51,43 +51,60 @@ async def process_youtube_url(url):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing video: {str(e)}")
 
-async def get_transcript(video_id):
+async def get_transcript(video_id, interval=15):  # Default 15 seconds
     try:
         transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
         raw_transcript = next(iter(transcript_list)).fetch()
         
-        # Format transcript with timestamps and text
+        # Group segments by interval
         formatted_segments = []
-        full_text = []
+        current_segment = {
+            'text': [],
+            'start': 0,
+            'end': interval
+        }
         
         for entry in raw_transcript:
-            # Convert timestamp to MM:SS format
             time = entry['start']
-            minutes = int(time // 60)
-            seconds = int(time % 60)
-            timestamp = f"{minutes:02d}:{seconds:02d}"
+            segment_index = int(time // interval)
+            segment_start = segment_index * interval
+            segment_end = segment_start + interval
             
-            text = entry['text'].strip()
-            
-            formatted_segments.append({
-                'timestamp': timestamp,
-                'text': text,
-                'start': entry['start']
-            })
-            
-            # Add to full text with timestamp
-            full_text.append(f"[{timestamp}] {text}")
+            if time >= current_segment['end']:
+                if current_segment['text']:
+                    formatted_segments.append({
+                        'timestamp': format_timestamp(current_segment['start']),
+                        'text': ' '.join(current_segment['text']),
+                        'start_seconds': current_segment['start']
+                    })
+                current_segment = {
+                    'text': [entry['text'].strip()],
+                    'start': segment_start,
+                    'end': segment_end
+                }
+            else:
+                current_segment['text'].append(entry['text'].strip())
         
-        # Sort segments by start time
-        formatted_segments.sort(key=lambda x: x['start'])
+        # Add the last segment
+        if current_segment['text']:
+            formatted_segments.append({
+                'timestamp': format_timestamp(current_segment['start']),
+                'text': ' '.join(current_segment['text']),
+                'start_seconds': current_segment['start']
+            })
         
         return {
-            'text': '\n'.join(full_text),
-            'segments': formatted_segments
+            'segments': formatted_segments,
+            'full_text': '\n'.join(f"[{s['timestamp']}] {s['text']}" for s in formatted_segments)
         }
     except Exception as e:
         print(f"Transcript error: {e}")
         return None
+
+def format_timestamp(seconds):
+    minutes = int(seconds // 60)
+    remaining_seconds = int(seconds % 60)
+    return f"{minutes:02d}:{remaining_seconds:02d}"
 
 async def extract_audio(video_url):
     try:

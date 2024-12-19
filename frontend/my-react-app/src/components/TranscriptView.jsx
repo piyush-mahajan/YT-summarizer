@@ -1,43 +1,38 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 
-function TranscriptView({ transcript, videoId }) {
+function TranscriptView({ transcript, videoId, onTimeClick }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [segments, setSegments] = useState([]);
   const [filteredSegments, setFilteredSegments] = useState(null);
+  const [selectedInterval, setSelectedInterval] = useState(15);
+
+  const intervals = [
+    { value: 5, label: '5 sec' },
+    { value: 15, label: '15 sec' },
+    { value: 30, label: '30 sec' },
+    { value: 60, label: '1 min' },
+    { value: 300, label: '5 min' },
+  ];
 
   useEffect(() => {
-    // Parse transcript data
-    if (transcript) {
-      try {
-        // Check if transcript is an object with segments
-        if (transcript.segments) {
-          setSegments(transcript.segments);
-        } 
-        // Check if transcript is a string
-        else if (typeof transcript === 'string') {
-          const lines = transcript.split('\n');
-          const parsedSegments = lines.map(line => {
-            const timestampMatch = line.match(/\[([\d:]+)\]/);
-            const timestamp = timestampMatch ? timestampMatch[1] : '';
-            const text = line.replace(/\[[\d:]+\]/, '').trim();
-            return { timestamp, text };
-          });
-          setSegments(parsedSegments);
-        }
-        // If transcript is in a different format
-        else if (Array.isArray(transcript)) {
-          const formattedSegments = transcript.map(segment => ({
-            timestamp: segment.timestamp || '',
-            text: segment.text || ''
-          }));
-          setSegments(formattedSegments);
-        }
-      } catch (error) {
-        console.error('Error parsing transcript:', error);
-        setSegments([]);
-      }
+    if (videoId && selectedInterval) {
+      fetchTranscriptWithInterval();
     }
-  }, [transcript]);
+  }, [videoId, selectedInterval]);
+
+  const fetchTranscriptWithInterval = async () => {
+    try {
+      const response = await axios.get(`http://localhost:8000/api/transcript/${videoId}`, {
+        params: { interval: selectedInterval }
+      });
+      if (response.data && response.data.segments) {
+        setSegments(response.data.segments);
+      }
+    } catch (error) {
+      console.error('Error fetching transcript:', error);
+    }
+  };
 
   const handleSearch = () => {
     if (!searchTerm.trim()) {
@@ -52,36 +47,55 @@ function TranscriptView({ transcript, videoId }) {
   };
 
   const handleTimeClick = (timestamp) => {
-    if (!timestamp || !videoId) return;
+    if (!timestamp || !onTimeClick) return;
     
-    // Convert MM:SS to seconds
-    const [minutes, seconds] = timestamp.split(':').map(Number);
-    const totalSeconds = minutes * 60 + seconds;
-    
-    window.open(
-      `https://www.youtube.com/watch?v=${videoId}&t=${totalSeconds}`,
-      '_blank'
-    );
+    let seconds;
+    if (typeof timestamp === 'string') {
+      const [minutes, secs] = timestamp.split(':').map(Number);
+      seconds = minutes * 60 + secs;
+    } else if (typeof timestamp === 'number') {
+      seconds = timestamp;
+    } else {
+      return;
+    }
+
+    console.log('Clicking timestamp:', seconds);
+    onTimeClick(seconds);
   };
 
   return (
     <div className="flex flex-col h-full">
-      {/* Search Bar */}
-      <div className="flex gap-2 mb-4">
-        <input
-          type="text"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-          placeholder="Search in transcript..."
-          className="flex-1 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <button
-          onClick={handleSearch}
-          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+      <div className="flex items-center justify-between mb-4">
+        {/* Search Bar */}
+        <div className="flex gap-2 flex-1 mr-4">
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+            placeholder="Search in transcript..."
+            className="flex-1 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            onClick={handleSearch}
+            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+          >
+            Search
+          </button>
+        </div>
+
+        {/* Interval Selector */}
+        <select
+          value={selectedInterval}
+          onChange={(e) => setSelectedInterval(Number(e.target.value))}
+          className="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
-          Search
-        </button>
+          {intervals.map(interval => (
+            <option key={interval.value} value={interval.value}>
+              {interval.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Transcript Content */}
@@ -90,14 +104,12 @@ function TranscriptView({ transcript, videoId }) {
           {(filteredSegments || segments).map((segment, index) => (
             <div 
               key={index}
-              className="flex items-start gap-4 p-2 hover:bg-gray-50 rounded-lg group"
+              className="flex items-start gap-4 p-2 hover:bg-gray-50 rounded-lg group cursor-pointer"
+              onClick={() => handleTimeClick(segment.timestamp)}
             >
-              <button
-                onClick={() => handleTimeClick(segment.timestamp)}
-                className="text-blue-500 hover:text-blue-700 font-mono whitespace-nowrap"
-              >
+              <span className="bg-blue-400 text-white hover:text-gray-300 font-mono whitespace-nowrap px-2 py-1 rounded">
                 {segment.timestamp}
-              </button>
+              </span>
               <p className="text-gray-700 flex-1">{segment.text}</p>
             </div>
           ))}

@@ -5,48 +5,103 @@ import VideoPlayer from './VideoPlayer';
 import TranscriptView from './TranscriptView';
 import SplitView from './SplitView';
 import { translateText } from '../utils/translate';
+import Toast from './Toast';
 
 function ResultsView({ data, onLanguageChange }) {
   const [activeTab, setActiveTab] = useState('summary');
   const [currentLanguage, setCurrentLanguage] = useState('en');
+  
   const [translations, setTranslations] = useState({
     en: data.summary // Store original English text
   });
+  const [toast, setToast] = useState(null);
+  const [currentVideoTime, setCurrentVideoTime] = useState(0);
+  
+  console.log('Initial state:', { 
+    activeTab, 
+    currentLanguage, 
+    translations, 
+    toast, 
+    currentVideoTime 
+  });
 
   const handleLanguageChange = async (newLanguage) => {
+    console.log('Language change initiated:', { newLanguage, currentLanguage });
     try {
       if (translations[newLanguage]) {
-        // If we already have this translation, use it
+        console.log('Translation already exists. Switching language.');
         setCurrentLanguage(newLanguage);
         return;
       }
 
-      // Get the text to translate (either from English or current translation)
       const textToTranslate = translations.en || data.summary;
-      
-      // Translate the text
+      console.log('Text to translate:', textToTranslate);
+
       const translatedText = await translateText(
         textToTranslate,
         newLanguage,
         currentLanguage
       );
+      console.log('Translated text:', translatedText);
 
-      // Store the translation
       setTranslations(prev => ({
         ...prev,
         [newLanguage]: translatedText
       }));
-
       setCurrentLanguage(newLanguage);
     } catch (error) {
       console.error('Translation error:', error);
-      // Handle error (maybe show a toast notification)
     }
   };
 
   const getVideoId = (url) => {
     const match = url.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/);
-    return match ? match[1] : null;
+    const videoId = match ? match[1] : null;
+    console.log('Extracted video ID:', videoId);
+    return videoId;
+  };
+
+  const showToast = (message, type = 'success') => {
+    console.log('Showing toast:', { message, type });
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleCopy = async () => {
+    console.log('Copy button clicked');
+    try {
+      await navigator.clipboard.writeText(translations[currentLanguage] || data.summary);
+      showToast('Copied to clipboard!');
+    } catch (err) {
+      console.error('Copy error:', err);
+      showToast('Failed to copy text', 'error');
+    }
+  };
+
+  const handleDownload = () => {
+    console.log('Download button clicked');
+    try {
+      const text = translations[currentLanguage] || data.summary;
+      console.log('Text to download:', text);
+      const blob = new Blob([text], { type: 'text/plain' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `summary_${currentLanguage}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      showToast('Summary downloaded!');
+    } catch (err) {
+      console.error('Download error:', err);
+      showToast('Failed to download summary', 'error');
+    }
+  };
+
+  const handleTimeClick = (seconds) => {
+    console.log('Time clicked in transcript:', seconds);
+    setCurrentVideoTime(seconds);
   };
 
   const LeftPanel = (
@@ -55,6 +110,7 @@ function ResultsView({ data, onLanguageChange }) {
         videoId={getVideoId(data.url)}
         thumbnail={data.thumbnail}
         title={data.title}
+        startTime={currentVideoTime}
       />
       <h2 className="text-lg font-semibold text-gray-800 break-words">
         {data.title}
@@ -64,10 +120,12 @@ function ResultsView({ data, onLanguageChange }) {
 
   const RightPanel = (
     <div className="p-4 min-w-[320px] w-full">
-      {/* Tabs */}
       <div className="flex flex-wrap gap-2 sm:gap-4 mb-6">
         <button
-          onClick={() => setActiveTab('summary')}
+          onClick={() => {
+            console.log('Switched to Summary tab');
+            setActiveTab('summary');
+          }}
           className={`px-4 sm:px-6 py-2 rounded-lg font-medium whitespace-nowrap
             ${activeTab === 'summary'
               ? 'bg-blue-500 text-white'
@@ -77,7 +135,10 @@ function ResultsView({ data, onLanguageChange }) {
           Summary
         </button>
         <button
-          onClick={() => setActiveTab('transcript')}
+          onClick={() => {
+            console.log('Switched to Transcript tab');
+            setActiveTab('transcript');
+          }}
           className={`px-4 sm:px-6 py-2 rounded-lg font-medium whitespace-nowrap
             ${activeTab === 'transcript'
               ? 'bg-blue-500 text-white'
@@ -87,7 +148,10 @@ function ResultsView({ data, onLanguageChange }) {
           Transcript
         </button>
         <button
-          onClick={() => setActiveTab('chat')}
+          onClick={() => {
+            console.log('Switched to AI Chat tab');
+            setActiveTab('chat');
+          }}
           className={`px-4 sm:px-6 py-2 rounded-lg font-medium whitespace-nowrap
             ${activeTab === 'chat'
               ? 'bg-blue-500 text-white'
@@ -98,16 +162,29 @@ function ResultsView({ data, onLanguageChange }) {
         </button>
       </div>
 
-      {/* Content Area */}
       <div className="bg-gray-50 rounded-lg p-3 sm:p-6 min-h-[400px] overflow-auto">
         {activeTab === 'summary' && (
           <div>
-            <div className="mb-4 flex justify-end">
+            <div className="mb-4 flex justify-end items-center gap-3">
               <LanguageSelect 
                 value={currentLanguage} 
                 onChange={handleLanguageChange}
                 currentLanguage={currentLanguage}
               />
+              <button
+                onClick={handleCopy}
+                className="p-2 text-gray-600 hover:text-gray-800 rounded-lg hover:bg-gray-100 transition-colors"
+                title="Copy to clipboard"
+              >
+                {/* Copy SVG */}
+              </button>
+              <button
+                onClick={handleDownload}
+                className="p-2 text-gray-600 hover:text-gray-800 rounded-lg hover:bg-gray-100 transition-colors"
+                title="Download summary"
+              >
+                {/* Download SVG */}
+              </button>
             </div>
             <p className="whitespace-pre-wrap text-gray-700 break-words">
               {translations[currentLanguage] || data.summary}
@@ -119,6 +196,7 @@ function ResultsView({ data, onLanguageChange }) {
           <TranscriptView 
             transcript={data.transcript?.text || data.transcript} 
             videoId={getVideoId(data.url)}
+            onTimeClick={handleTimeClick}
           />
         )}
 
@@ -130,13 +208,20 @@ function ResultsView({ data, onLanguageChange }) {
   );
 
   return (
-    <SplitView 
-      left={LeftPanel}
-      right={RightPanel}
-    />
+    <>
+      <SplitView 
+        left={LeftPanel}
+        right={RightPanel}
+      />
+      {toast && (
+        <Toast 
+          message={toast.message} 
+          type={toast.type} 
+          onClose={() => setToast(null)} 
+        />
+      )}
+    </>
   );
 }
 
-export default ResultsView; 
-
-
+export default ResultsView;
