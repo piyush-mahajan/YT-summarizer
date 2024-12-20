@@ -1,122 +1,107 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
+import axios from 'axios';
 
 function ChatView({ transcript }) {
   const [messages, setMessages] = useState([]);
-  const [inputMessage, setInputMessage] = useState('');
+  const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const messagesEndRef = useRef(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  const getTranscriptText = (transcript) => {
+    if (!transcript) return '';
+    if (typeof transcript === 'string') return transcript;
+    if (transcript.full_text) return transcript.full_text;
+    if (transcript.segments) {
+      return transcript.segments.map(segment => segment.text).join(' ');
+    }
+    return '';
   };
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const handleSendMessage = async (e) => {
+  const sendMessage = async (e) => {
     e.preventDefault();
-    if (!inputMessage.trim()) return;
-
-    const userMessage = {
-      type: 'user',
-      content: inputMessage
-    };
-
-    setMessages(prev => [...prev, userMessage]);
-    setIsLoading(true);
-    setInputMessage('');
+    if (!input.trim() || isLoading) return;
 
     try {
-      console.log('Sending request to chat API...');
-      const response = await fetch('http://localhost:8000/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: inputMessage,
-          transcript: transcript
-        }),
+      setIsLoading(true);
+      const userMessage = { role: 'user', content: input };
+      setMessages(prev => [...prev, userMessage]);
+      setInput('');
+
+      const transcriptText = getTranscriptText(transcript);
+      console.log('Using transcript:', transcriptText.substring(0, 100) + '...');
+
+      const chatMessages = [...messages, userMessage].map(msg => ({
+        role: msg.role,
+        content: msg.content
+      }));
+
+      const response = await axios.post('http://localhost:8000/api/chat', {
+        messages: chatMessages,
+        transcript: transcriptText
       });
 
-      console.log('Response status:', response.status);
-      const data = await response.json();
-      console.log('Response data:', data);
-
-      if (!response.ok) {
-        throw new Error(data.detail || 'Failed to get response from AI');
-      }
-
-      if (data.response) {
-        const aiMessage = {
-          type: 'ai',
-          content: data.response
-        };
-        setMessages(prev => [...prev, aiMessage]);
-      }
-    } catch (error) {
-      console.error('Chat error:', error);
-      const errorMessage = {
-        type: 'ai',
-        content: `Error: ${error.message || 'Failed to process your request'}`
+      const assistantMessage = {
+        role: 'assistant',
+        content: response.data.response
       };
-      setMessages(prev => [...prev, errorMessage]);
+
+      setMessages(prev => [...prev, assistantMessage]);
+    } catch (error) {
+      console.error('Chat error:', error.response?.data || error);
+      const errorMessage = error.response?.data?.detail?.[0]?.msg || 
+                          error.response?.data?.detail ||
+                          'Sorry, I encountered an error. Please try again.';
+      
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: errorMessage
+      }]);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex flex-col h-[400px] bg-white rounded-lg shadow">
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+    <div className="flex flex-col h-full">
+      <div className="flex-1 overflow-auto mb-4 space-y-4">
         {messages.map((message, index) => (
           <div
             key={index}
-            className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+            className={`p-3 rounded-lg ${
+              message.role === 'user'
+                ? 'bg-blue-100 ml-auto max-w-[80%]'
+                : 'bg-gray-100 mr-auto max-w-[80%]'
+            }`}
           >
-            <div
-              className={`max-w-[70%] rounded-lg p-3 ${
-                message.type === 'user'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-100 text-gray-800'
-              }`}
-            >
-              {message.content}
-            </div>
+            <p className="text-gray-800">{message.content}</p>
           </div>
         ))}
         {isLoading && (
-          <div className="flex justify-start">
-            <div className="bg-gray-100 rounded-lg p-3">
-              <div className="flex space-x-2">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100"></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200"></div>
-              </div>
-            </div>
+          <div className="bg-gray-100 p-3 rounded-lg mr-auto">
+            <p className="text-gray-500">Thinking...</p>
           </div>
         )}
-        <div ref={messagesEndRef} />
       </div>
-      <form onSubmit={handleSendMessage} className="border-t p-4">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
-            placeholder="Ask anything about the transcript..."
-            className="flex-1 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={isLoading}
-          />
-          <button
-            type="submit"
-            disabled={isLoading || !inputMessage.trim()}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Send
-          </button>
-        </div>
+
+      <form onSubmit={sendMessage} className="flex gap-2">
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Ask a question about the video..."
+          className="flex-1 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          disabled={isLoading}
+        />
+        <button
+          type="submit"
+          disabled={isLoading}
+          className={`px-4 py-2 rounded-lg font-medium ${
+            isLoading
+              ? 'bg-gray-300 cursor-not-allowed'
+              : 'bg-blue-500 text-white hover:bg-blue-600'
+          }`}
+        >
+          Send
+        </button>
       </form>
     </div>
   );

@@ -14,7 +14,8 @@ import openai
 import os
 from dotenv import load_dotenv
 import httpx
-from typing import Optional
+from typing import Optional, List
+from .services.chat import ChatService
 
 load_dotenv()  # Load environment variables
 
@@ -47,11 +48,18 @@ class YouTubeRequest(BaseModel):
 
 
 
+class ChatMessage(BaseModel):
+
+    role: str
+
+    content: str
+
+
 class ChatRequest(BaseModel):
 
-    message: str
+    messages: List[ChatMessage]
 
-    transcript: Optional[str] = None
+    transcript: str
 
 
 class TranslationRequest(BaseModel):
@@ -120,57 +128,15 @@ async def options_route():
 
 # Add this new endpoint for chat
 @app.post("/api/chat")
-async def chat_with_transcript(request: ChatRequest):
+async def chat(request: ChatRequest):
     try:
-        # Validate request
-        if not request.message:
-            raise HTTPException(status_code=400, detail="Message is required")
-
-        # Get environment variables
-        api_key = os.getenv("AZURE_OPENAI_KEY")
-        endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-        deployment = os.getenv("AZURE_DEPLOYMENT_NAME")
-
-        if not all([api_key, endpoint, deployment]):
-            raise HTTPException(status_code=500, detail="Missing API configuration")
-
-        # Prepare the conversation
-        system_message = "You are a helpful assistant that answers questions about video transcripts."
-        user_message = f"""Context: {request.transcript if request.transcript else 'No transcript provided'}
-
-Question: {request.message}
-
-Please provide a relevant answer based on the context."""
-
-        # Configure the client
-        client = openai.AzureOpenAI(
-            api_key=api_key,
-            api_version="2024-05-01-preview",
-            azure_endpoint=endpoint
+        chat_service = ChatService()
+        response = await chat_service.get_chat_response(
+            messages=[msg.dict() for msg in request.messages],
+            transcript=request.transcript
         )
-
-        try:
-            # Make the API call
-            response = client.chat.completions.create(
-                model=deployment,
-                messages=[
-                    {"role": "system", "content": system_message},
-                    {"role": "user", "content": user_message}
-                ],
-                temperature=0.7,
-                max_tokens=800
-            )
-
-            # Extract and return the response
-            ai_response = response.choices[0].message.content.strip()
-            return JSONResponse(content={"response": ai_response})
-
-        except Exception as api_error:
-            print(f"API Error: {str(api_error)}")
-            raise HTTPException(status_code=500, detail=f"API Error: {str(api_error)}")
-
+        return {"response": response}
     except Exception as e:
-        print(f"Error in chat endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/translate")

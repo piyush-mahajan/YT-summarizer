@@ -6,6 +6,7 @@ import TranscriptView from './TranscriptView';
 import SplitView from './SplitView';
 import { translateText } from '../utils/translate';
 import Toast from './Toast';
+import FormattedSummary from './FormattedSummary';
 
 function ResultsView({ data, onLanguageChange }) {
   const [activeTab, setActiveTab] = useState('summary');
@@ -186,9 +187,7 @@ function ResultsView({ data, onLanguageChange }) {
                 {/* Download SVG */}
               </button>
             </div>
-            <p className="whitespace-pre-wrap text-gray-700 break-words">
-              {translations[currentLanguage] || data.summary}
-            </p>
+            <FormattedSummary text={translations[currentLanguage] || data.summary} />
           </div>
         )}
 
@@ -201,7 +200,13 @@ function ResultsView({ data, onLanguageChange }) {
         )}
 
         {activeTab === 'chat' && (
-          <ChatView transcript={data.transcript?.text || data.transcript} />
+          <ChatView 
+            transcript={
+              typeof data.transcript === 'string' 
+                ? data.transcript 
+                : data.transcript?.text || data.transcript?.full_text || ''
+            } 
+          />
         )}
       </div>
     </div>
