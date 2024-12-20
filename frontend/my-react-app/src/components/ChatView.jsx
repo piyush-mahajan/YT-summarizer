@@ -1,10 +1,52 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 
 function ChatView({ transcript }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  const customRenderers = {
+    strong: ({ children }) => (
+      <span className="font-bold text-gray-900">{children}</span>
+    ),
+    link: ({ href, children }) => (
+      <a 
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-blue-600 hover:text-blue-800 underline"
+      >
+        {children}
+      </a>
+    ),
+    paragraph: ({ children }) => (
+      <p className="mb-2 text-gray-800">{children}</p>
+    ),
+    list: ({ ordered, children }) => (
+      ordered ? (
+        <ol className="list-decimal ml-6 mb-3 space-y-1">{children}</ol>
+      ) : (
+        <ul className="list-disc ml-6 mb-3 space-y-1">{children}</ul>
+      )
+    ),
+    code: ({ inline, className, children }) => (
+      inline ? (
+        <code className="bg-gray-100 px-1 py-0.5 rounded font-mono text-sm">
+          {children}
+        </code>
+      ) : (
+        <pre className="bg-gray-100 p-3 rounded-lg overflow-x-auto">
+          <code className={`language-${className} font-mono text-sm`}>
+            {children}
+          </code>
+        </pre>
+      )
+    ),
+  };
 
   const getTranscriptText = (transcript) => {
     if (!transcript) return '';
@@ -66,13 +108,25 @@ function ChatView({ transcript }) {
         {messages.map((message, index) => (
           <div
             key={index}
-            className={`p-3 rounded-lg ${
+            className={`p-4 rounded-lg ${
               message.role === 'user'
                 ? 'bg-blue-100 ml-auto max-w-[80%]'
                 : 'bg-gray-100 mr-auto max-w-[80%]'
             }`}
           >
-            <p className="text-gray-800">{message.content}</p>
+            {message.role === 'user' ? (
+              <p className="text-gray-800">{message.content}</p>
+            ) : (
+              <div className="prose prose-sm max-w-none">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeRaw]}
+                  components={customRenderers}
+                >
+                  {message.content}
+                </ReactMarkdown>
+              </div>
+            )}
           </div>
         ))}
         {isLoading && (
