@@ -172,22 +172,10 @@ function ResultsView({ data, onLanguageChange }) {
                 onChange={handleLanguageChange}
                 currentLanguage={currentLanguage}
               />
-              <button
-                onClick={handleCopy}
-                className="p-2 text-gray-600 hover:text-gray-800 rounded-lg hover:bg-gray-100 transition-colors"
-                title="Copy to clipboard"
-              >
-                {/* Copy SVG */}
-              </button>
-              <button
-                onClick={handleDownload}
-                className="p-2 text-gray-600 hover:text-gray-800 rounded-lg hover:bg-gray-100 transition-colors"
-                title="Download summary"
-              >
-                {/* Download SVG */}
-              </button>
             </div>
-            <FormattedSummary text={translations[currentLanguage] || data.summary} />
+            <FormattedSummary 
+              text={translations[currentLanguage] || data.summary}
+            />
           </div>
         )}
 

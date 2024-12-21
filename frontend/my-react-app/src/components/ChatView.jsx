@@ -3,6 +3,7 @@ import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
+import ActionPills from './ActionPills';
 
 function ChatView({ transcript }) {
   const [messages, setMessages] = useState([]);
@@ -102,8 +103,50 @@ function ChatView({ transcript }) {
     }
   };
 
+  const handleAction = async (actionId, prompt) => {
+    if (!prompt) return;
+    
+    setIsLoading(true);
+    try {
+      const transcriptText = getTranscriptText(transcript);
+      const systemMessage = {
+        role: 'system',
+        content: `You are analyzing this video transcript: ${transcriptText.substring(0, 1000)}...`
+      };
+
+      const userMessage = {
+        role: 'user',
+        content: prompt
+      };
+
+      setMessages(prev => [...prev, userMessage]);
+
+      const response = await axios.post('http://localhost:8000/api/chat', {
+        messages: [systemMessage, userMessage],
+        transcript: transcriptText
+      });
+
+      const assistantMessage = {
+        role: 'assistant',
+        content: response.data.response
+      };
+
+      setMessages(prev => [...prev, assistantMessage]);
+    } catch (error) {
+      console.error('Action error:', error);
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: 'Sorry, I encountered an error processing your request.'
+      }]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full">
+      <ActionPills onAction={handleAction} />
+      
       <div className="flex-1 overflow-auto mb-4 space-y-4">
         {messages.map((message, index) => (
           <div
