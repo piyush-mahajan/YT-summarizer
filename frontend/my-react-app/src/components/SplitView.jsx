@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useTheme } from '../context/ThemeContext';
 
 function SplitView({ left, right }) {
+  const { themeColor } = useTheme();
   const [isDragging, setIsDragging] = useState(false);
   const [splitPosition, setSplitPosition] = useState(40);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
@@ -82,8 +84,8 @@ function SplitView({ left, right }) {
   return (
     <div 
       ref={containerRef}
-      className={`flex h-[calc(100vh-12rem)] relative bg-white rounded-lg shadow-lg overflow-hidden
-        ${isMobile ? 'flex-col sm:flex-row' : ''}`}
+      className={`flex h-[calc(100vh-12rem)] relative bg-white/90 backdrop-blur-sm 
+        rounded-lg shadow-lg overflow-hidden ${isMobile ? 'flex-col sm:flex-row' : ''}`}
     >
       {/* Left Panel */}
       <div 
@@ -98,10 +100,14 @@ function SplitView({ left, right }) {
       {/* Draggable Divider */}
       <div
         ref={dragRef}
-        className={`bg-gray-200 hover:bg-blue-500 active:bg-blue-600 
-          transition-colors relative ${isDragging ? 'bg-blue-600' : ''}
+        className={`bg-gray-200 transition-colors relative
+          ${isDragging ? '' : 'hover:bg-opacity-75'}
           ${isMobile ? 'h-1 w-full sm:h-full sm:w-1' : 'w-1 h-full'}
           cursor-col-resize touch-none select-none`}
+        style={{ 
+          backgroundColor: isDragging ? themeColor : 'rgb(229 231 235)',
+          '&:hover': { backgroundColor: themeColor }
+        }}
         onMouseDown={handleMouseDown}
         onTouchStart={handleMouseDown}
       >

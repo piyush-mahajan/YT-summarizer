@@ -2,22 +2,22 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
 import TopNav from './components/TopNav';
+import { ThemeProvider } from './context/ThemeContext';
 
 function App() {
-  const handleColorChange = (color) => {
-    // Implement theme color change logic here
-    console.log('Theme color changed:', color);
-  };
-
   return (
-    <Router>
-      <div className="min-h-screen bg-gray-50">
-        <TopNav onColorChange={handleColorChange} />
-        <Routes>
-          <Route path="/" element={<Home />} />
-        </Routes>
-      </div>
-    </Router>
+    <ThemeProvider>
+      <Router>
+        <div className="min-h-screen w-full">
+          <TopNav />
+          <main className="w-full px-4 py-8">
+            <Routes>
+              <Route path="/" element={<Home />} />
+            </Routes>
+          </main>
+        </div>
+      </Router>
+    </ThemeProvider>
   );
 }
 
