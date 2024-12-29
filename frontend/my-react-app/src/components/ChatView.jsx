@@ -1,85 +1,67 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
-import ActionPills from './ActionPills';
 
 function ChatView({ transcript }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showPromptForm, setShowPromptForm] = useState(false);
+  const [customPrompts, setCustomPrompts] = useState(() => {
+    const saved = localStorage.getItem('customPrompts');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [newPrompt, setNewPrompt] = useState({
+    title: '',
+    prompt: ''
+  });
 
-  const customRenderers = {
-    strong: ({ children }) => (
-      <span className="font-bold text-gray-900">{children}</span>
-    ),
-    link: ({ href, children }) => (
-      <a 
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-blue-600 hover:text-blue-800 underline"
-      >
-        {children}
-      </a>
-    ),
-    paragraph: ({ children }) => (
-      <p className="mb-2 text-gray-800">{children}</p>
-    ),
-    list: ({ ordered, children }) => (
-      ordered ? (
-        <ol className="list-decimal ml-6 mb-3 space-y-1">{children}</ol>
-      ) : (
-        <ul className="list-disc ml-6 mb-3 space-y-1">{children}</ul>
-      )
-    ),
-    code: ({ inline, className, children }) => (
-      inline ? (
-        <code className="bg-gray-100 px-1 py-0.5 rounded font-mono text-sm">
-          {children}
-        </code>
-      ) : (
-        <pre className="bg-gray-100 p-3 rounded-lg overflow-x-auto">
-          <code className={`language-${className} font-mono text-sm`}>
-            {children}
-          </code>
-        </pre>
-      )
-    ),
-  };
+  useEffect(() => {
+    localStorage.setItem('customPrompts', JSON.stringify(customPrompts));
+  }, [customPrompts]);
 
-  const getTranscriptText = (transcript) => {
-    if (!transcript) return '';
-    if (typeof transcript === 'string') return transcript;
-    if (transcript.full_text) return transcript.full_text;
-    if (transcript.segments) {
-      return transcript.segments.map(segment => segment.text).join(' ');
-    }
-    return '';
-  };
-
-  const sendMessage = async (e) => {
+  const handleAddPrompt = (e) => {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if (newPrompt.title.trim() && newPrompt.prompt.trim()) {
+      if (newPrompt.id) {
+        // Edit existing prompt
+        setCustomPrompts(prev => prev.map(p => 
+          p.id === newPrompt.id ? { ...newPrompt } : p
+        ));
+      } else {
+        // Add new prompt
+        setCustomPrompts(prev => [...prev, { ...newPrompt, id: Date.now() }]);
+      }
+      setNewPrompt({ title: '', prompt: '' });
+      setShowPromptForm(false);
+    }
+  };
 
+  const handleDeletePrompt = (id) => {
+    setCustomPrompts(prev => prev.filter(prompt => prompt.id !== id));
+  };
+
+  const handleEditPrompt = (id) => {
+    const promptToEdit = customPrompts.find(p => p.id === id);
+    if (promptToEdit) {
+      setNewPrompt(promptToEdit);
+      setShowPromptForm(true);
+    }
+  };
+
+  const handlePromptClick = async (prompt) => {
+    if (!prompt) return;
+    
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      const userMessage = { role: 'user', content: input };
+      const userMessage = { role: 'user', content: prompt };
       setMessages(prev => [...prev, userMessage]);
-      setInput('');
-
-      const transcriptText = getTranscriptText(transcript);
-      console.log('Using transcript:', transcriptText.substring(0, 100) + '...');
-
-      const chatMessages = [...messages, userMessage].map(msg => ({
-        role: msg.role,
-        content: msg.content
-      }));
 
       const response = await axios.post('http://localhost:8000/api/chat', {
-        messages: chatMessages,
-        transcript: transcriptText
+        messages: [userMessage],
+        transcript: transcript
       });
 
       const assistantMessage = {
@@ -89,41 +71,29 @@ function ChatView({ transcript }) {
 
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
-      console.error('Chat error:', error.response?.data || error);
-      const errorMessage = error.response?.data?.detail?.[0]?.msg || 
-                          error.response?.data?.detail ||
-                          'Sorry, I encountered an error. Please try again.';
-      
+      console.error('Error:', error);
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: errorMessage
+        content: 'Sorry, I encountered an error processing your request.'
       }]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleAction = async (actionId, prompt) => {
-    if (!prompt) return;
+  const sendMessage = async (e) => {
+    e.preventDefault();
+    if (!input.trim() || isLoading) return;
+
+    const userMessage = { role: 'user', content: input };
+    setMessages(prev => [...prev, userMessage]);
+    setInput('');
     
-    setIsLoading(true);
     try {
-      const transcriptText = getTranscriptText(transcript);
-      const systemMessage = {
-        role: 'system',
-        content: `You are analyzing this video transcript: ${transcriptText.substring(0, 1000)}...`
-      };
-
-      const userMessage = {
-        role: 'user',
-        content: prompt
-      };
-
-      setMessages(prev => [...prev, userMessage]);
-
+      setIsLoading(true);
       const response = await axios.post('http://localhost:8000/api/chat', {
-        messages: [systemMessage, userMessage],
-        transcript: transcriptText
+        messages: [userMessage],
+        transcript: transcript
       });
 
       const assistantMessage = {
@@ -133,7 +103,7 @@ function ChatView({ transcript }) {
 
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
-      console.error('Action error:', error);
+      console.error('Error:', error);
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: 'Sorry, I encountered an error processing your request.'
@@ -145,8 +115,128 @@ function ChatView({ transcript }) {
 
   return (
     <div className="flex flex-col h-full">
-      <ActionPills onAction={handleAction} />
-      
+      {/* Custom Prompts Section */}
+      <div className="flex flex-wrap gap-2 mb-4">
+        {customPrompts.map((prompt) => (
+          <div key={prompt.id} className="group relative">
+            <button
+              onClick={() => handlePromptClick(prompt.prompt)}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 
+                       rounded-full text-sm font-medium text-gray-700 transition-colors"
+            >
+              <span>✨</span>
+              {prompt.title}
+            </button>
+            <div className="absolute right-0 top-0 -mt-2 -mr-2 opacity-0 group-hover:opacity-100 
+                          transition-opacity flex gap-1">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleEditPrompt(prompt.id);
+                }}
+                className="p-1 bg-blue-500 text-white rounded-full hover:bg-blue-600"
+                title="Edit"
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeletePrompt(prompt.id);
+                }}
+                className="p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                title="Delete"
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                        d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        ))}
+        <button
+          onClick={() => setShowPromptForm(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-100 hover:bg-blue-200 
+                   rounded-full text-sm font-medium text-blue-700 transition-colors"
+        >
+          <span>+</span>
+          Add New Prompt
+        </button>
+      </div>
+
+      {/* Add/Edit Prompt Modal */}
+      {showPromptForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">
+              {newPrompt.id ? 'Edit Prompt' : 'Add New Prompt'}
+            </h3>
+            <form onSubmit={handleAddPrompt}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Button Title
+                  </label>
+                  <input
+                    type="text"
+                    value={newPrompt.title}
+                    onChange={(e) => setNewPrompt(prev => ({
+                      ...prev,
+                      title: e.target.value
+                    }))}
+                    placeholder="Enter button title"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md 
+                             focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Prompt Text
+                  </label>
+                  <textarea
+                    value={newPrompt.prompt}
+                    onChange={(e) => setNewPrompt(prev => ({
+                      ...prev,
+                      prompt: e.target.value
+                    }))}
+                    placeholder="Enter prompt text"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md 
+                             focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    rows="3"
+                    required
+                  />
+                </div>
+                <div className="flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPromptForm(false);
+                      setNewPrompt({ title: '', prompt: '' });
+                    }}
+                    className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-500 text-white rounded-md 
+                             hover:bg-blue-600 font-medium"
+                  >
+                    {newPrompt.id ? 'Save Changes' : 'Add Button'}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Chat Messages */}
       <div className="flex-1 overflow-auto mb-4 space-y-4">
         {messages.map((message, index) => (
           <div
@@ -164,7 +254,6 @@ function ChatView({ transcript }) {
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   rehypePlugins={[rehypeRaw]}
-                  components={customRenderers}
                 >
                   {message.content}
                 </ReactMarkdown>
@@ -179,6 +268,7 @@ function ChatView({ transcript }) {
         )}
       </div>
 
+      {/* Input Form */}
       <form onSubmit={sendMessage} className="flex gap-2">
         <input
           type="text"
